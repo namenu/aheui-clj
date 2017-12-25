@@ -116,6 +116,10 @@
     (집어넣기 storage (op y x)))
   (log "셈하기" op "=> " storage))
 
+(defn 선택 [machine target]
+  (log "선택" target)
+  (reset! (:storage-index machine) target))
+
 (defn exec! [machine ins]
   (let [storage (current-storage machine)
         소리 (split-jamo ins)]
@@ -133,6 +137,8 @@
       \ㅂ (집어넣기 storage (:끝 소리) (:값 소리))
       \ㅃ (중복 storage)
       \ㅍ (바꿔치기 storage)
+      ; ㅅ 묶음
+      \ㅅ (선택 machine (:끝 소리))
       (log "몰라요😅")))
   (update machine :cursor move-cursor ins))
 
