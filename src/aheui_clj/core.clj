@@ -89,28 +89,31 @@
       (log "버리기" popped))
     popped))
 
-(defn 집어넣기 [storage action value]
-  (case action
-    \ㅇ (log "정수 입력받기")
-    \ㅎ (log "UTF-8 입력받기")
-    (swap! storage conj value))
-  (log "집어넣기" storage))
+(defn 집어넣기
+  ([storage value]
+   (집어넣기 storage \0 value))
+  ([storage action value]
+   (case action
+     \ㅇ (log "정수 입력받기")
+     \ㅎ (log "UTF-8 입력받기")
+     (swap! storage conj value))
+   (log "집어넣기" storage)))
 
 (defn 중복 [storage]
-  (집어넣기 storage \0 (peek @storage))
+  (집어넣기 storage (peek @storage))
   (log "중복" storage))
 
 (defn 바꿔치기 [storage]
   (let [x (뽑기 storage nil)
         y (뽑기 storage nil)]
-    (집어넣기 storage \0 x)
-    (집어넣기 storage \0 y))
+    (집어넣기 storage x)
+    (집어넣기 storage y))
   (log "바꿔치기" "=> " storage))
 
 (defn 셈하기 [storage op]
   (let [x (뽑기 storage nil)
         y (뽑기 storage nil)]
-    (집어넣기 storage \0 (op y x)))
+    (집어넣기 storage (op y x)))
   (log "셈하기" op "=> " storage))
 
 (defn exec! [machine ins]
