@@ -1,9 +1,5 @@
 (ns aheui-clj.machine
-  (:require [clojure.tools.logging :as logging])
-  (:gen-class))
-
-(defn log [& args]
-  (logging/debug args))
+  (:require [clojure.tools.logging :as log]))
 
 (def 처음
   [\ㄱ \ㄲ \ㄴ \ㄷ \ㄸ \ㄹ \ㅁ \ㅂ \ㅃ \ㅅ \ㅆ \ㅇ \ㅈ \ㅉ \ㅊ \ㅋ \ㅌ \ㅍ \ㅎ])
@@ -76,9 +72,9 @@
   (let [popped (peek @storage)]
     (swap! storage pop)
     (case action
-      \ㅇ (log "10진수 출력" popped)
+      \ㅇ (log/debug "10진수 출력" popped)
       \ㅎ (print (char popped))
-      (log "버리기" popped))
+      (log/debug "버리기" popped))
     popped))
 
 (defn 집어넣기
@@ -86,36 +82,30 @@
    (집어넣기 storage \0 value))
   ([storage action value]
    (case action
-     \ㅇ (log "정수 입력받기")
-     \ㅎ (log "UTF-8 입력받기")
-     (swap! storage conj value))
-   (log "집어넣기" storage)))
+     \ㅇ (log/debug "정수 입력받기")
+     \ㅎ (log/debug "UTF-8 입력받기")
+     (swap! storage conj value))))
 
 (defn 중복 [storage]
-  (집어넣기 storage (peek @storage))
-  (log "중복" storage))
+  (집어넣기 storage (peek @storage)))
 
 (defn 바꿔치기 [storage]
   (let [x (뽑기 storage nil)
         y (뽑기 storage nil)]
     (집어넣기 storage x)
-    (집어넣기 storage y))
-  (log "바꿔치기" "=> " storage))
+    (집어넣기 storage y)))
 
 (defn 셈하기 [storage op]
   (let [x (뽑기 storage nil)
         y (뽑기 storage nil)]
-    (집어넣기 storage (op y x)))
-  (log "셈하기" op "=> " storage))
+    (집어넣기 storage (op y x))))
 
 (defn 선택 [machine target]
-  (log "선택" target)
   (reset! (:storage-index machine) target))
 
 (defn- exec! [machine ins]
   (let [storage (current-storage machine)
         소리 (split-jamo ins)]
-    (log ins "=>" storage)
     (case (:첫 소리)
       ; ㅇ 묶음
       ; ㄷ 묶음
@@ -131,7 +121,7 @@
       \ㅍ (바꿔치기 storage)
       ; ㅅ 묶음
       \ㅅ (선택 machine (:끝 소리))
-      (log "몰라요😅")))
+      (log/error "몰라요😅")))
   (update machine :cursor move-cursor ins))
 
 (defn run
