@@ -29,15 +29,19 @@
 
 ;;;
 
-(def generate-storages
-  (into {}
-        (map #(hash-map % (atom [])) 끝)))
+(defn gen-storage [받침]
+  (atom (if (= 받침 \ㅇ)
+          clojure.lang.PersistentQueue/EMPTY
+          [])))
 
-(defn generate-machine []
+(def gen-storages
+  (into {} (map #(hash-map % (gen-storage %)) 끝)))
+
+(defn gen-machine []
   {:cursor {:x 0
             :y 0
             :v [0 1]}
-   :storages generate-storages
+   :storages gen-storages
    :storage-index (atom \0)})
 
 (defn current-storage [machine]
@@ -126,7 +130,7 @@
 
 (defn run
   ([code]
-   (run code (generate-machine)))
+   (run code (gen-machine)))
   ([code initial-machine]
    (loop [machine initial-machine]
      (let [cursor (:cursor machine)

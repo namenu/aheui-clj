@@ -10,7 +10,7 @@
 (def hello-world
   (read-code (io/resource "hello_world.aheui")))
 
-(def initial-machine (aheui/generate-machine))
+(def initial-machine (aheui/gen-machine))
 ;(aheui/reset-storages initial-machine)
 ;(aheui/run hello-world initial-machine)
 
