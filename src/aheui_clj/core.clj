@@ -9,11 +9,8 @@
 
 (def hello-world
   (read-code (io/resource "hello_world.aheui")))
-
-(def initial-machine (aheui/gen-machine))
-;(aheui/reset-storages initial-machine)
-;(aheui/run hello-world initial-machine)
-
-(defn -main
-  [& args]
-  (aheui/run hello-world initial-machine))
+(def pi
+  (read-code (io/resource "pi.puzzlet.aheui")))
+  
+;(aheui/run hello-world)
+;(aheui/run pi)
