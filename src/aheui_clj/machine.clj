@@ -52,9 +52,8 @@
 (defn reset-storages [machine]
   (map #(reset! (second %) []) (:storages machine)))
 
-(defn move-cursor [{x :x y :y v :v} ins]
-  (let [홀소리 (:가 (decode ins))
-        dv (case 홀소리
+(defn move-cursor [{x :x y :y v :v} 홀소리]
+  (let [dv (case 홀소리
              \ㅏ [1 0]
              \ㅑ [2 0]
              \ㅓ [-1 0]
@@ -78,7 +77,7 @@
   (let [popped (peek @storage)]
     (swap! storage pop)
     (case action
-      \ㅇ (log/debug "10진수 출력" popped)
+      \ㅇ (print popped)
       \ㅎ (print (char popped))
       (log/debug "버리기" popped))
     popped))
@@ -102,6 +101,8 @@
     (집어넣기 storage y)))
 
 (defn 셈하기 [storage op]
+  (if (< (count @storage) 2)
+    (throw (java.lang.IllegalStateException. (str "Not enough operands for " op))))
   (let [x (뽑기 storage nil)
         y (뽑기 storage nil)]
     (집어넣기 storage (op y x))))
@@ -116,25 +117,29 @@
 
 (defn- exec! [machine ins]
   (let [storage (current-storage machine)
-        소리 (decode ins)]
-    (case (:첫 소리)
-      ; ㅇ 묶음
-      ; ㄷ 묶음
-      \ㄷ (셈하기 storage +)
-      \ㄸ (셈하기 storage *)
-      \ㅌ (셈하기 storage -)
-      \ㄴ (셈하기 storage /)
-      \ㄹ (셈하기 storage mod)
-      ; ㅁ 묶음
-      \ㅁ (뽑기 storage (:끝 소리))
-      \ㅂ (집어넣기 storage (:끝 소리) (:값 소리))
-      \ㅃ (중복 storage)
-      \ㅍ (바꿔치기 storage)
-      ; ㅅ 묶음
-      \ㅅ (선택 machine (:끝 소리))
-      \ㅆ (이동 machine (:끝 소리))
-      (log/error "몰라요😅")))
-  (update machine :cursor move-cursor ins))
+        {첫 :첫, 가 :가, 끝 :끝, 값 :값} (decode ins)]
+    (try
+      (case 첫
+        ; ㅇ 묶음
+        ; ㄷ 묶음
+        \ㄷ (셈하기 storage +)
+        \ㄸ (셈하기 storage *)
+        \ㅌ (셈하기 storage -)
+        \ㄴ (셈하기 storage quot)
+        \ㄹ (셈하기 storage mod)
+        ; ㅁ 묶음
+        \ㅁ (뽑기 storage 끝)
+        \ㅂ (집어넣기 storage 끝 값)
+        \ㅃ (중복 storage)
+        \ㅍ (바꿔치기 storage)
+        ; ㅅ 묶음
+        \ㅅ (선택 machine 끝)
+        \ㅆ (이동 machine 끝)
+        (log/debug "몰라요😅" ins))
+      (update machine :cursor move-cursor 가)
+      (catch java.lang.IllegalStateException e
+        ;(prn "Instruction can't be executed." (.getMessage e))
+        (update machine :cursor move-cursor nil)))))
 
 (defn run
   ([code]

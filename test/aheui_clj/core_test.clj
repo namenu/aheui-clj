@@ -9,3 +9,9 @@
     (let [hello-world (read-code (io/resource "hello_world.aheui"))]
       (is (= (with-out-str (aheui/run hello-world))
              "Hello, world!\n")))))
+
+(deftest pi-test
+  (testing "PI Puzzlet"
+    (let [pi (read-code (io/resource "pi.puzzlet.aheui"))]
+      (is (= (with-out-str (aheui/run pi))
+             "314")))))
