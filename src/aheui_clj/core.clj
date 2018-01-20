@@ -1,16 +1,14 @@
 (ns aheui-clj.core
-  (:require [aheui-clj.machine :as aheui]
-            [clojure.java.io :as io]
-            [clojure.string :as str])
+  (:require [aheui-clj.machine :refer [아희]]
+            [clojure.java.io :as io])
   (:gen-class))
 
-(defn read-code [res]
-  (vec (map vec (str/split-lines (slurp res)))))
-
 (def hello-world
-  (read-code (io/resource "hello_world.aheui")))
+  (slurp (io/resource "hello_world.aheui")))
 (def pi
-  (read-code (io/resource "pi.puzzlet.aheui")))
-  
-;(aheui/run hello-world)
-;(aheui/run pi)
+  (slurp (io/resource "pi.puzzlet.aheui")))
+
+;(아희 "밝밦따망희")
+;(with-in-str "45678" (아희 "방맣희"))
+;(아희 hello-world)
+;(아희 pi)
