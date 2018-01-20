@@ -1,6 +1,5 @@
 (ns aheui-clj.machine
-  (:require [clojure.string :as str]
-            [clojure.tools.logging :as log]))
+  (:require [clojure.tools.logging :as log]))
 
 (def 처음
   [\ㄱ \ㄲ \ㄴ \ㄷ \ㄸ \ㄹ \ㅁ \ㅂ \ㅃ \ㅅ \ㅆ \ㅇ \ㅈ \ㅉ \ㅊ \ㅋ \ㅌ \ㅍ \ㅎ])
@@ -85,7 +84,7 @@
   ([storage action value]
    (let [input (case action
                   \ㅇ (Integer. (read-line))
-                  \ㅎ (log/debug "UTF-8 입력받기")
+                  \ㅎ (.read *in*)
                   value)]
       (swap! storage conj input))))
 
@@ -155,9 +154,3 @@
       (if-let [홀소리 (exec! machine ins)]
         (recur (update machine :cursor move-cursor 홀소리))
         (끝냄 machine)))))
-
-(defmacro 아희 [code]
-  `(let [code# (->> (str/split-lines ~code)
-                    (map vec)
-                    vec)]
-     (run code#)))
