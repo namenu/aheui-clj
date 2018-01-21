@@ -1,30 +1,22 @@
 (ns aheui-clj.machine
-  (:require [clojure.tools.logging :as log])
-  (:require [hangul-utils.core :refer [korean-syllable? initial-jaeums medial-moeums final-jaeums]
-                               :rename {initial-jaeums 처음, medial-moeums 가운데, final-jaeums 끝}]))
+  (:require [clojure.tools.logging :as log]
+            [hangul-utils.core :refer [korean-syllable? deconstruct]]))
+
+; Copied form hangul-utils
+(def final-jaeums
+  "The jaeums (consonants) which end Korean characters in modern usage. `nil` is
+  included for the characters only made up of two jamo."
+  [nil \ㄱ \ㄲ \ㄳ \ㄴ \ㄵ \ㄶ \ㄷ \ㄹ \ㄺ \ㄻ \ㄼ \ㄽ \ㄾ \ㄿ \ㅀ \ㅁ \ㅂ \ㅄ
+   \ㅅ \ㅆ \ㅇ \ㅈ \ㅊ \ㅋ \ㅌ \ㅍ \ㅎ])
 
 (def 받침값
-  [0 2 4 4 2 5 5 3 5 7 9 9 7 9 9 8 4 4 6 2 4 0 3 4 3 4 4 0])
+  (zipmap final-jaeums [0 2 4 4 2 5 5 3 5 7 9 9 7 9 9 8 4 4 6 2 4 0 3 4 3 4 4 0]))
 
 (defn decode
   "Decodes a valid Hangle character or '왜'."
   [ch]
   (if (korean-syllable? ch)
-    (let [c (- (int ch) 0xAC00)
-          끝idx (mod c 28)
-          가idx (-> c
-                   (- 끝idx)
-                   (/ 28)
-                   (mod 21))
-          첫idx (-> c
-                   (- 끝idx)
-                   (/ 28)
-                   (- 가idx)
-                   (/ 21))]
-      {:첫 (처음 첫idx)
-       :가 (가운데 가idx)
-       :끝 (끝 끝idx)
-       :값 (받침값 끝idx)})
+    (deconstruct ch)
     (decode \왜)))
 
 (defn- get-inst [code cursor]
@@ -37,7 +29,7 @@
           [])))
 
 (def gen-storages
-  (zipmap 끝 (map gen-storage 끝)))
+  (zipmap final-jaeums (map gen-storage final-jaeums)))
 
 (defn gen-machine []
   {:cursor {:x 0
@@ -118,7 +110,7 @@
   "Executes the instruction and returns 홀소리"
   [machine inst]
   (let [storage (current-storage machine)
-        {명령 :첫, 홀소리 :가, 받침 :끝, 값 :값} (decode inst)]
+        [명령 홀소리 받침] (decode inst)]
     (if (= \ㅎ 명령) ;; 끝냄
       nil ;; halt
       (try
@@ -133,7 +125,7 @@
           \ㄹ (셈하기 storage mod)
           ; ㅁ 묶음
           \ㅁ (뽑기 storage 받침)
-          \ㅂ (집어넣기 storage 받침 값)
+          \ㅂ (집어넣기 storage 받침 (받침값 받침))
           \ㅃ (중복 storage)
           \ㅍ (바꿔치기 storage)
           ; ㅅ 묶음
