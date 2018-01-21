@@ -36,7 +36,8 @@
             :y 0
             :v [0 1]}
    :storages gen-storages
-   :storage-index (atom nil)})
+   :storage-index (atom nil)
+   :halted false})
 
 (defn current-storage [machine]
   (get (:storages machine) @(:storage-index machine)))
@@ -59,6 +60,12 @@
      :y (+ y (dv 1))
      :v dv}))
 
+(defn move-head
+  ([machine]
+   (move-head machine \ㅐ))
+  ([machine 홀소리]
+   (update machine :cursor move-cursor 홀소리)))
+
 (defn 뽑기 [storage action]
   (let [popped (peek @storage)]
     (swap! storage pop)
@@ -73,10 +80,10 @@
    (집어넣기 storage nil value))
   ([storage action value]
    (let [input (case action
-                  \ㅇ (Integer. (read-line))
-                  \ㅎ (.read *in*)
-                  value)]
-      (swap! storage conj input))))
+                 \ㅇ (Integer. (read-line))
+                 \ㅎ (.read *in*)
+                 value)]
+     (swap! storage conj input))))
 
 (defn 중복 [storage]
   (집어넣기 storage (peek @storage)))
@@ -103,19 +110,21 @@
     (집어넣기 to (뽑기 from nil))))
 
 (defn 끝냄 [machine]
+  (assoc machine :halted true))
+
+(defn exit-code [machine]
   (let [storage (current-storage machine)]
     (if (empty? @storage) 0 (뽑기 storage nil))))
 
-(defn- exec!
+(defn- 실행
   "Executes the instruction and returns 홀소리"
   [machine inst]
   (let [storage (current-storage machine)
         [명령 홀소리 받침] (decode inst)]
-    (if (= \ㅎ 명령) ;; 끝냄
-      nil ;; halt
+    (if (= \ㅎ 명령)
+      (끝냄 machine)
       (try
         (case 명령
-          ; ㅇ 묶음
           \ㅇ "없음"
           ; ㄷ 묶음
           \ㄷ (셈하기 storage +)
@@ -132,15 +141,16 @@
           \ㅅ (선택 machine 받침)
           \ㅆ (이동 machine 받침)
           (log/debug "몰라요😅" inst))
-        홀소리
+        (move-head machine 홀소리)
         (catch java.lang.IllegalStateException e
           ;; keep previous direction when operation failed
-          \ㅐ)))))
+          (move-head machine))))))
 
 (defn run [code]
   (loop [machine (gen-machine)]
-    (let [cursor (:cursor machine)
-          inst (get-inst code cursor)]
-      (if-let [홀소리 (exec! machine inst)]
-        (recur (update machine :cursor move-cursor 홀소리))
-        (끝냄 machine)))))
+    (let [cursor      (:cursor machine)
+          inst        (get-inst code cursor)
+          next-state  (실행 machine inst)]
+      (if (:halted next-state)
+        (exit-code next-state)
+        (recur next-state)))))
