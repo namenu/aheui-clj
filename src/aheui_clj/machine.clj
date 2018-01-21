@@ -1,19 +1,15 @@
 (ns aheui-clj.machine
-  (:require [clojure.tools.logging :as log]))
+  (:require [clojure.tools.logging :as log])
+  (:require [hangul-utils.core :refer [korean-syllable? initial-jaeums medial-moeums final-jaeums]
+                               :rename {initial-jaeums 처음, medial-moeums 가운데, final-jaeums 끝}]))
 
-(def 처음
-  [\ㄱ \ㄲ \ㄴ \ㄷ \ㄸ \ㄹ \ㅁ \ㅂ \ㅃ \ㅅ \ㅆ \ㅇ \ㅈ \ㅉ \ㅊ \ㅋ \ㅌ \ㅍ \ㅎ])
-(def 가운데
-  [\ㅏ \ㅐ \ㅑ \ㅒ \ㅓ \ㅔ \ㅕ \ㅖ \ㅗ \ㅘ \ㅙ \ㅚ \ㅛ \ㅜ \ㅝ \ㅞ \ㅟ \ㅠ \ㅡ \ㅢ \ㅣ])
-(def 끝
-  [\0 \ㄱ \ㄲ \ㄳ \ㄴ \ㄵ \ㄶ \ㄷ \ㄹ \ㄺ \ㄻ \ㄼ \ㄽ \ㄾ \ㄿ \ㅀ \ㅁ \ㅂ \ㅄ \ㅅ \ㅆ \ㅇ \ㅈ \ㅊ \ㅋ \ㅌ \ㅍ \ㅎ])
-(def 받침
+(def 받침값
   [0 2 4 4 2 5 5 3 5 7 9 9 7 9 9 8 4 4 6 2 4 0 3 4 3 4 4 0])
 
 (defn decode
-  "Decodes a valid Hangle character or decodes '왜' for invalid one."
+  "Decodes a valid Hangle character or '왜'."
   [ch]
-  (if (re-matches #"[가-힇]" (str ch))
+  (if (korean-syllable? ch)
     (let [c (- (int ch) 0xAC00)
           끝idx (mod c 28)
           가idx (-> c
@@ -28,10 +24,12 @@
       {:첫 (처음 첫idx)
        :가 (가운데 가idx)
        :끝 (끝 끝idx)
-       :값 (받침 끝idx)})
+       :값 (받침값 끝idx)})
     (decode \왜)))
 
-;;;
+(defn- get-inst [code cursor]
+  (or (get-in code [(:y cursor) (:x cursor)])
+      \space))
 
 (defn gen-storage [받침]
   (atom (if (= 받침 \ㅇ)
@@ -46,7 +44,7 @@
             :y 0
             :v [0 1]}
    :storages gen-storages
-   :storage-index (atom \0)})
+   :storage-index (atom nil)})
 
 (defn current-storage [machine]
   (get (:storages machine) @(:storage-index machine)))
@@ -80,7 +78,7 @@
 
 (defn 집어넣기
   ([storage value]
-   (집어넣기 storage \0 value))
+   (집어넣기 storage nil value))
   ([storage action value]
    (let [input (case action
                   \ㅇ (Integer. (read-line))
@@ -118,9 +116,9 @@
 
 (defn- exec!
   "Executes the instruction and returns 홀소리"
-  [machine ins]
+  [machine inst]
   (let [storage (current-storage machine)
-        {명령 :첫, 홀소리 :가, 받침 :끝, 값 :값} (decode ins)]
+        {명령 :첫, 홀소리 :가, 받침 :끝, 값 :값} (decode inst)]
     (if (= \ㅎ 명령) ;; 끝냄
       nil ;; halt
       (try
@@ -141,7 +139,7 @@
           ; ㅅ 묶음
           \ㅅ (선택 machine 받침)
           \ㅆ (이동 machine 받침)
-          (log/debug "몰라요😅" ins))
+          (log/debug "몰라요😅" inst))
         홀소리
         (catch java.lang.IllegalStateException e
           ;; keep previous direction when operation failed
@@ -150,7 +148,7 @@
 (defn run [code]
   (loop [machine (gen-machine)]
     (let [cursor (:cursor machine)
-          ins (get-in code [(:y cursor) (:x cursor)])]
-      (if-let [홀소리 (exec! machine ins)]
+          inst (get-inst code cursor)]
+      (if-let [홀소리 (exec! machine inst)]
         (recur (update machine :cursor move-cursor 홀소리))
         (끝냄 machine)))))

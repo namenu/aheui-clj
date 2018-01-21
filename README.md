@@ -1,6 +1,6 @@
 # aheui-clj
 
-난해한 한글 프로그래밍 언어 [아희](http://aheui.github.io/)의 Clojure로 구현체입니다.
+난해한 한글 프로그래밍 언어 [아희](http://aheui.github.io/)의 Clojure 구현입니다.
 
 
 ### Examples
