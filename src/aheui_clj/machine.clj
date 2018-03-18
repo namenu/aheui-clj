@@ -49,11 +49,11 @@
 (defn gen-machine []
   {:cursor {:pos [0 0], :v [0 1]}
    :storages gen-storages
-   :storage-index (atom nil)
+   :storage-index nil
    :halted false})
 
 (defn current-storage [machine]
-  (get (:storages machine) @(:storage-index machine)))
+  (get (:storages machine) (:storage-index machine)))
 
 (defn move-cursor [cursor 홀소리]
   (let [dv     (movement 홀소리 (:v cursor))
@@ -98,9 +98,6 @@
         y (뽑기 storage)]
     (집어넣기 storage (op y x))))
 
-(defn 선택 [machine 받침]
-  (reset! (:storage-index machine) 받침))
-
 (defn 이동 [machine 받침]
   (let [from (current-storage machine)
         to (get (:storages machine) 받침)]
@@ -110,34 +107,38 @@
   (let [storage (current-storage machine)]
     (if (empty? @storage) 0 (뽑기 storage))))
 
+(defmacro m-cmd [cmd]
+  `(do
+     ~cmd
+     ~'machine))
+
 (defn 명령 [machine 닿소리 받침]
   (let [storage (current-storage machine)]
     (case 닿소리
-      \ㅇ "없음"
+      \ㅇ (m-cmd "없음")
       ; ㄷ 묶음
-      \ㄷ (셈하기 storage +)
-      \ㄸ (셈하기 storage *)
-      \ㅌ (셈하기 storage -)
-      \ㄴ (셈하기 storage quot)
-      \ㄹ (셈하기 storage mod)
+      \ㄷ (m-cmd (셈하기 storage +))
+      \ㄸ (m-cmd (셈하기 storage *))
+      \ㅌ (m-cmd (셈하기 storage -))
+      \ㄴ (m-cmd (셈하기 storage quot))
+      \ㄹ (m-cmd (셈하기 storage mod))
       ; ㅁ 묶음
-      \ㅁ (뽑기 storage 받침)
-      \ㅂ (집어넣기 storage (받침값 받침) 받침)
-      \ㅃ (중복 storage)
-      \ㅍ (바꿔치기 storage)
+      \ㅁ (m-cmd (뽑기 storage 받침))
+      \ㅂ (m-cmd (집어넣기 storage (받침값 받침) 받침))
+      \ㅃ (m-cmd (중복 storage))
+      \ㅍ (m-cmd (바꿔치기 storage))
       ; ㅅ 묶음
-      \ㅅ (선택 machine 받침)
-      \ㅆ (이동 machine 받침)
-      (do
-        (log/debug "몰라요😅" 닿소리)
-        machine))))
+      \ㅅ (assoc machine :storage-index 받침)
+      \ㅆ (m-cmd (이동 machine 받침))
+      ; 기타
+      (m-cmd (log/debug "몰라요😅" 닿소리)))))
 
 (defn- 실행
   [machine [닿소리 홀소리 받침]]
   (try
-    (do
-      (명령 machine 닿소리 받침)
-      (update machine :cursor move-cursor 홀소리))
+    (-> machine
+        (명령 닿소리 받침)
+        (update :cursor move-cursor 홀소리))
     (catch java.lang.IllegalStateException e
       ;; keep previous direction when operation failed
       (update machine :cursor move-cursor \ㅐ))))
