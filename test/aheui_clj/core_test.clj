@@ -1,14 +1,14 @@
 (ns aheui-clj.core-test
   (:require [clojure.test :refer :all]
-            [aheui-clj.core :refer [아희 ㅏ]]
+            [aheui-clj.core :refer [아희]]
             [clojure.java.io :as io]))
 
 (deftest basic-in-out-test
   (testing "in"
-    (is (= (with-out-str (with-in-str "45678" (ㅏ 방맣희)))
+    (is (= (with-out-str (with-in-str "45678" (아희 "방맣희")))
            "뉮")))
   (testing "out"
-    (is (= (with-out-str (ㅏ 밝밦따망희))
+    (is (= (with-out-str (아희 "밝밦따망희"))
            "42"))))
 
 (deftest hello-world-test

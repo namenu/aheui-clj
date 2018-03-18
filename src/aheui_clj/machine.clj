@@ -34,9 +34,9 @@
     (deconstruct ch)
     (decode \왜)))
 
-(defn- get-inst [code cursor]
-  (or (get-in code [(:y cursor) (:x cursor)])
-      \space))
+(defn get-inst [code [x y]]
+  (let [c (get-in code [y x] \space)]
+    (decode c)))
 
 (defn gen-storage [받침]
   (atom (if (= 받침 \ㅇ)
@@ -47,9 +47,7 @@
   (zipmap final-jaeums (map gen-storage final-jaeums)))
 
 (defn gen-machine []
-  {:cursor {:x 0
-            :y 0
-            :v [0 1]}
+  {:cursor {:pos [0 0], :v [0 1]}
    :storages gen-storages
    :storage-index (atom nil)
    :halted false})
@@ -57,14 +55,10 @@
 (defn current-storage [machine]
   (get (:storages machine) @(:storage-index machine)))
 
-(defn move-cursor
-  ([machine]
-   (move-cursor machine \ㅐ))
-  ([machine 홀소리]
-   (let [{x :x, y :y, v :v} (:cursor machine)
-         dv                 (movement 홀소리 v)
-         new-cursor         {:x (+ x (dv 0)), :y (+ y (dv 1)), :v dv}]
-     (assoc machine :cursor new-cursor))))
+(defn move-cursor [cursor 홀소리]
+  (let [dv     (movement 홀소리 (:v cursor))
+        newpos (map + (:pos cursor) dv)]
+    {:pos newpos :v dv}))
 
 (defn 뽑기
   ([storage]
@@ -112,48 +106,45 @@
         to (get (:storages machine) 받침)]
     (집어넣기 to (뽑기 from))))
 
-(defn 끝냄 [machine]
-  (assoc machine :halted true))
-
 (defn exit-code [machine]
   (let [storage (current-storage machine)]
     (if (empty? @storage) 0 (뽑기 storage))))
 
+(defn 명령 [machine 닿소리 받침]
+  (let [storage (current-storage machine)]
+    (case 닿소리
+      \ㅇ "없음"
+      ; ㄷ 묶음
+      \ㄷ (셈하기 storage +)
+      \ㄸ (셈하기 storage *)
+      \ㅌ (셈하기 storage -)
+      \ㄴ (셈하기 storage quot)
+      \ㄹ (셈하기 storage mod)
+      ; ㅁ 묶음
+      \ㅁ (뽑기 storage 받침)
+      \ㅂ (집어넣기 storage (받침값 받침) 받침)
+      \ㅃ (중복 storage)
+      \ㅍ (바꿔치기 storage)
+      ; ㅅ 묶음
+      \ㅅ (선택 machine 받침)
+      \ㅆ (이동 machine 받침)
+      (do
+        (log/debug "몰라요😅" 닿소리)
+        machine))))
+
 (defn- 실행
-  "Executes the instruction and returns 홀소리"
-  [machine inst]
-  (let [storage (current-storage machine)
-        [명령 홀소리 받침] (decode inst)]
-    (if (= \ㅎ 명령)
-      (끝냄 machine)
-      (try
-        (case 명령
-          \ㅇ "없음"
-          ; ㄷ 묶음
-          \ㄷ (셈하기 storage +)
-          \ㄸ (셈하기 storage *)
-          \ㅌ (셈하기 storage -)
-          \ㄴ (셈하기 storage quot)
-          \ㄹ (셈하기 storage mod)
-          ; ㅁ 묶음
-          \ㅁ (뽑기 storage 받침)
-          \ㅂ (집어넣기 storage (받침값 받침) 받침)
-          \ㅃ (중복 storage)
-          \ㅍ (바꿔치기 storage)
-          ; ㅅ 묶음
-          \ㅅ (선택 machine 받침)
-          \ㅆ (이동 machine 받침)
-          (log/debug "몰라요😅" inst))
-        (move-cursor machine 홀소리)
-        (catch java.lang.IllegalStateException e
-          ;; keep previous direction when operation failed
-          (move-cursor machine))))))
+  [machine [닿소리 홀소리 받침]]
+  (try
+    (do
+      (명령 machine 닿소리 받침)
+      (update machine :cursor move-cursor 홀소리))
+    (catch java.lang.IllegalStateException e
+      ;; keep previous direction when operation failed
+      (update machine :cursor move-cursor \ㅐ))))
 
 (defn run [code]
   (loop [machine (gen-machine)]
-    (let [cursor      (:cursor machine)
-          inst        (get-inst code cursor)
-          next-state  (실행 machine inst)]
-      (if (:halted next-state)
-        (exit-code next-state)
-        (recur next-state)))))
+    (let [[닿소리 홀소리 받침 :as inst] (get-inst code (get-in machine [:cursor :pos]))]
+      (if (= \ㅎ 닿소리)
+        (exit-code machine)
+        (recur (실행 machine inst))))))
