@@ -57,8 +57,9 @@
 
 (defn move-cursor [cursor 홀소리]
   (let [dv     (movement 홀소리 (:v cursor))
+        dv     (if (:reverse cursor) (map - dv) dv)
         newpos (map + (:pos cursor) dv)]
-    {:pos newpos :v dv}))
+    {:pos newpos :v dv :reverse false}))
 
 (defn 뽑기
   ([storage]
@@ -103,7 +104,17 @@
         to (get (:storages machine) 받침)]
     (집어넣기 to (뽑기 from))))
 
-(defn exit-code [machine]
+(defn 비교 [storage]
+  (let [x (뽑기 storage)
+        y (뽑기 storage)]
+    (집어넣기 (if (>= y x) 1 0))))
+
+(defn 조건 [machine storage]
+  (if (= 0 (뽑기 storage))
+    (assoc-in machine [:cursor :reverse] true)
+    machine))
+
+(defn 끝냄 [machine]
   (let [storage (current-storage machine)]
     (if (empty? @storage) 0 (뽑기 storage))))
 
@@ -130,6 +141,8 @@
       ; ㅅ 묶음
       \ㅅ (assoc machine :storage-index 받침)
       \ㅆ (m-cmd (이동 machine 받침))
+      \ㅈ (m-cmd (비교 storage))
+      \ㅊ (조건 machine storage)
       ; 기타
       (m-cmd (log/debug "몰라요😅" 닿소리)))))
 
@@ -147,5 +160,5 @@
   (loop [machine (gen-machine)]
     (let [[닿소리 홀소리 받침 :as inst] (get-inst code (get-in machine [:cursor :pos]))]
       (if (= \ㅎ 닿소리)
-        (exit-code machine)
+        (끝냄 machine)
         (recur (실행 machine inst))))))
