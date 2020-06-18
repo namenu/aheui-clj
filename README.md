@@ -6,9 +6,8 @@
 ### Examples
 
 ```clojure
-aheui-clj.core=> (ㅏ 방맣희)
-45678
-뉮0
-aheui-clj.core=> (ㅏ 밝밦따망희)
-420
+(require '[aheui.core :as aheui])
+=> nil
+(with-out-str (aheui/run "밝밦따망희"))
+=> "42"
 ```
