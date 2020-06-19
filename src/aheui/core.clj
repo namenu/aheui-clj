@@ -27,6 +27,9 @@
        홀소리
        v))
 
+(def required-operands
+  {\ㄷ 2 \ㄸ 2 \ㅌ 2 \ㄴ 2 \ㄹ 2 \ㅁ 1 \ㅃ 1 \ㅍ 2 \ㅆ 1 \ㅈ 2 \ㅊ 1})
+
 (defn decode [str]
   (loop [[line & lines] (str/split-lines str)
          y    0
@@ -53,11 +56,15 @@
      :halted        false
      :exit-code     0}))
 
-(defn move-cursor [cursor 홀소리]
-  (let [dv     (movement 홀소리 (:v cursor))
-        dv     (if (:reverse cursor) (map - dv) dv)
-        newpos (map + (:pos cursor) dv)]
-    {:pos newpos :v dv :reverse false}))
+(defn update-cursor [{:keys [dir reverse pos]} 홀소리]
+  ;(prn 홀소리 pos)
+  (let [dv (movement 홀소리 dir)]
+    {:pos     (mapv (if reverse - +) pos dv)
+     :dir     dv
+     :reverse false}))
+
+(defn reverse-cursor [cursor]
+  (assoc cursor :reverse true))
 
 (defn 뽑기
   "1. storage -> [storage, value]
@@ -88,29 +95,28 @@
 
 (defn 셈하기 [storages index op]
   (let [s (get storages index)]
-    (assert (>= (count s) 2) (str "storage underflow: index of" index))
     (let [[s x] (뽑기 s)
           [s y] (뽑기 s)
-          s (집어넣기 s (op y x))]
+          v (op y x)
+          s (집어넣기 s v)]
       (assoc storages index s))))
 
-#_(defn 이동 [machine 받침]
-    (let [from (current-storage machine)
-          to   (get (:storages machine) 받침)]
-      (집어넣기 to (뽑기 from))))
+(defn 이동 [storages from to]
+  (let [[storages' v] (뽑기 storages from)]
+    (집어넣기 storages' to v)))
 
-#_(defn 비교 [storage]
-    (let [x (뽑기 storage)
-          y (뽑기 storage)]
-      (집어넣기 (if (>= y x) 1 0))))
+(defn 비교 [x y]
+  (if (>= x y) 1 0))
 
-#_(defn 조건 [machine storage]
-    (if (= 0 (뽑기 storage))
-      (assoc-in machine [:cursor :reverse] true)
-      machine))
+(defn 조건 [{:keys [storages storage-index] :as machine}]
+  (let [[storages' popped] (뽑기 storages storage-index)
+        machine' (assoc machine :storages storages')]
+    (if (= 0 popped)
+      (update machine' :cursor reverse-cursor)
+      machine')))
 
 (defn 끝냄 [{:keys [storages storage-index] :as machine}]
-  (let [storage (get storage-index storages)]
+  (let [storage (get storages storage-index)]
     (if (empty? storage)
       (assoc machine :halted true)
       (let [[s v] (뽑기 storage)]
@@ -118,7 +124,13 @@
             (update :storages assoc storage-index s)
             (assoc :exit-code v))))))
 
-(defn exec [{:keys [storages storage-index] :as machine} [닿소리 _ 받침]]
+(defn underflow? [{:keys [storages storage-index]} cmd]
+  (if-let [required (required-operands cmd)]
+    (let [storage (get storages storage-index)]
+      (< (count storage) required))
+    false))
+
+(defn exec [{:keys [storages storage-index] :as machine} 닿소리 받침]
   (case 닿소리
     ; ㅇ 묶음
     \ㅇ machine
@@ -145,11 +157,11 @@
     \ㅍ (update machine :storages 바꿔치기 storage-index)
     ; ㅅ 묶음
     \ㅅ (assoc machine :storage-index 받침)
-    ;\ㅆ (이동 machine 받침)
-    ;\ㅈ (비교 storage)
-    ;\ㅊ (조건 machine storage)
+    \ㅆ (update machine :storages 이동 storage-index 받침)
+    \ㅈ (update machine :storages 셈하기 storage-index 비교)
+    \ㅊ (조건 machine)
     ; else
-    (prn "몰라요😅" 닿소리)
+    machine
     ))
 
 (require '[clojure.string :as str])
@@ -157,36 +169,32 @@
 (defn get-inst [{:keys [code cursor]}]
   (code (:pos cursor)))
 
-(defn update-cursor [{:keys [dir reverse pos]} [_ 홀소리 _]]
-  (let [dv (movement 홀소리 dir)]
-    {:pos     (mapv (if reverse - +) pos dv)
-     :dir     dv
-     :reverse false}))
-
 (defn instruction-cycle [machine]
-  (let [inst (get-inst machine)]
-    ;(prn "> " inst)
-    (-> (exec machine inst)
-        (update :cursor update-cursor inst))))
+  (let [[닿소리 홀소리 받침 :as inst] (get-inst machine)]
+    ;(prn "> " inst (get (:storages machine) (:storage-index machine)))
+    (if (underflow? machine 닿소리)
+      (-> (update machine :cursor reverse-cursor)
+          (update :cursor update-cursor 홀소리))
+      (-> (exec machine 닿소리 받침)
+          (update :cursor update-cursor 홀소리)))))
 
 (defn run
-  ([source it-cnt]
-   (let [machine (->machine (decode source))]
-     (->> (iterate instruction-cycle machine)
-          (drop it-cnt)
-          (first))))
   ([source]
    (let [machine (->machine (decode source))]
      (->> (iterate instruction-cycle machine)
           (drop-while #(not (:halted %)))
+          (first))))
+  ([source it-cnt]
+   (let [machine (->machine (decode source))]
+     (->> (iterate instruction-cycle machine)
+          (drop it-cnt)
           (first)))))
 
 
 ;; must-have scratch pad
 (comment
   (require '[clojure.java.io :as io])
-  (let [source (slurp (io/resource "hello_world.aheui"))
-        #_#_source (slurp (io/resource "pi.puzzlet.aheui"))]
-    (run source)
-    0
-    ))
+  (let [#_#_source (slurp (io/resource "hello_world.aheui"))
+        source (slurp (io/resource "pi.puzzlet.aheui"))]
+    (-> (run source)
+        (dissoc :code))))

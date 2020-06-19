@@ -18,7 +18,7 @@
              "Hello, world!\n")))))
 
 (deftest pi-test
-  #_(testing "PI Puzzlet"
+  (testing "PI Puzzlet"
     (let [pi (slurp (io/resource "pi.puzzlet.aheui"))]
       (is (= (with-out-str (run pi))
              "314")))))
